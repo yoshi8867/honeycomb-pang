@@ -175,6 +175,19 @@ html, body {
   border-radius: 12px;
 }
 .rules b { color: var(--fg); }
+.rules li { position: relative; padding-left: 15px; }
+.rules li + li { margin-top: 7px; }
+.rules li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: .78em;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: .75;
+}
 
 .best { margin: 16px 0 0; font-size: 12px; color: var(--dim); }
 .best b { color: var(--accent); font-variant-numeric: tabular-nums; }
