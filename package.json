@@ -1,0 +1,12 @@
+{
+  "name": "honeycomb-pang",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "90초 육각 블록 퍼즐 (HTML5, 의존성 없음)",
+  "scripts": {
+    "shapes": "node tools/gen-shapes.mjs",
+    "test": "node --test \"tools/*.test.mjs\"",
+    "dev": "node tools/serve.mjs"
+  }
+}
