@@ -108,7 +108,11 @@ export const BONUS_STYLES = [
 
 export const BONUS_STYLE_BY_ID = new Map(BONUS_STYLES.map((s) => [s.id, s]));
 
-/** 실제로 쓸 디자인. tools/bonus-styles.html 에서 고른 id를 여기 넣는다. */
+/**
+ * 실제로 쓸 디자인. 후보는 tools/bonus-styles.html 에서 실제 크기로 비교할 수 있고,
+ * 여기 id만 바꾸면 보드·트레이·드래그·소멸 이펙트·점수 팝업이 전부 따라 바뀐다.
+ * 나머지 후보는 나중에 갈아끼울 수 있게 그대로 남겨둔다.
+ */
 export const ACTIVE_BONUS_STYLE = 'gold';
 
 export const activeBonusStyle = () => BONUS_STYLE_BY_ID.get(ACTIVE_BONUS_STYLE);
