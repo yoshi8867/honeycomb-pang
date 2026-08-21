@@ -21,6 +21,7 @@ const el = {
   btnLabels: $('btn-labels'),
 };
 
+// 저장 키는 옛 이름 그대로 (game.js의 HIGH_SCORE_KEY와 같은 이유)
 const LABELS_KEY = 'honeycomb-pang.showLabels';
 
 const game = new Game();
@@ -44,77 +45,34 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 120));
 resize();
 
 // --- 오버레이 --------------------------------------------------------
-function showStartPanel() {
-  el.overlay.innerHTML = '';
-  el.overlay.append(buildPanel({
-    title: 'honeycomb<span>-pang</span>',
-    tagline: '90초. 벌집을 채우고 라인을 터뜨려라.',
-    rules: true,
-    action: '시작',
-  }));
-  el.overlay.classList.add('show');
-}
-
+// 시작 화면은 index.html에 그대로 들어있다 (JS 로딩 전에도 바로 보이도록).
+// 여기서는 게임오버 화면만 만든다 — 게임 이름과 규칙 문구가 두 군데로 갈라지지 않게.
 function showGameOverPanel() {
   const record = game.score >= game.highScore && game.score > 0;
-  el.overlay.innerHTML = '';
-  el.overlay.append(buildPanel({
-    title: '시간 종료',
-    scoreValue: game.score,
-    record,
-    action: '다시 하기',
-  }));
-  el.overlay.classList.add('show');
-}
 
-function buildPanel({ title, tagline, rules, scoreValue, record, action }) {
   const panel = document.createElement('div');
   panel.className = 'panel';
 
   const h1 = document.createElement('h1');
-  h1.innerHTML = title;
+  h1.textContent = '시간 종료';
   panel.append(h1);
 
-  if (tagline) {
-    const p = document.createElement('p');
-    p.className = 'tagline';
-    p.textContent = tagline;
-    panel.append(p);
-  }
+  const score = document.createElement('div');
+  score.className = 'final-score';
+  score.textContent = game.score.toLocaleString();
+  panel.append(score);
 
-  if (scoreValue !== undefined) {
-    const s = document.createElement('div');
-    s.className = 'final-score';
-    s.textContent = scoreValue.toLocaleString();
-    panel.append(s);
-    if (record) {
-      const r = document.createElement('p');
-      r.className = 'new-record';
-      r.textContent = 'NEW RECORD';
-      panel.append(r);
-    }
-  }
-
-  if (rules) {
-    const ul = document.createElement('ul');
-    ul.className = 'rules';
-    for (const html of [
-      '블록을 끌어다 벌집에 놓으면 <b>타일당 20점</b>',
-      '한 줄이 <b>가득 차면</b> 통째로 사라지고 <b>타일당 100점</b>',
-      '가로 · ↗ · ↘ 세 방향, 두 줄이 겹치면 중복으로 가산',
-      '<b class="gold">×2 보너스 블록</b>은 놓을 때도 터질 때도 <b>2배</b>',
-    ]) {
-      const li = document.createElement('li');
-      li.innerHTML = html;
-      ul.append(li);
-    }
-    panel.append(ul);
+  if (record) {
+    const r = document.createElement('p');
+    r.className = 'new-record';
+    r.textContent = 'NEW RECORD';
+    panel.append(r);
   }
 
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'btn btn-primary';
-  btn.textContent = action;
+  btn.textContent = '다시 하기';
   btn.addEventListener('click', startGame);
   panel.append(btn);
 
@@ -123,7 +81,8 @@ function buildPanel({ title, tagline, rules, scoreValue, record, action }) {
   best.innerHTML = `최고 점수 <b>${game.highScore.toLocaleString()}</b>`;
   panel.append(best);
 
-  return panel;
+  el.overlay.replaceChildren(panel);
+  el.overlay.classList.add('show');
 }
 
 function startGame() {

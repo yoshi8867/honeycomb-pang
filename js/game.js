@@ -13,6 +13,7 @@ export const RULES = {
   candidateSlots: 3,
 };
 
+// 저장 키는 옛 이름 그대로 둔다. 바꾸면 이미 저장된 최고 점수가 날아간다.
 const HIGH_SCORE_KEY = 'honeycomb-pang.highScore';
 
 /** 착수 점수. 보너스 블록은 전체가 보너스 타일이라 통째로 2배. */

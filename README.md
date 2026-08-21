@@ -1,6 +1,7 @@
-# honeycomb-pang
+# 허니팡
 
 90초 안에 육각 블록을 벌집에 채워 라인을 터뜨리는 모바일용 퍼즐 게임.
+리포지터리 이름(`honeycomb-pang`)은 배포 URL이 걸려 있어 그대로 둔다.
 빌드 도구도 외부 라이브러리도 쓰지 않는 순수 HTML5 + Canvas.
 
 **플레이**: https://yoshi8867.github.io/honeycomb-pang/
