@@ -8,11 +8,19 @@ export const RULES = {
   durationMs: 90_000,       // 플레이 시간 90초
   pointsPerPlacedTile: 20,  // 놓은 타일 1개당
   pointsPerClearedTile: 100,// 사라진 타일 1개당 (라인 중복 시 중복 계산)
+  bonusMultiplier: 2,       // 보너스 타일은 놓을 때도, 사라질 때도 2배
   refreshPenaltyMs: 1_000,  // 리프레시 1초 페널티
   candidateSlots: 3,
 };
 
 const HIGH_SCORE_KEY = 'honeycomb-pang.highScore';
+
+/** 착수 점수. 보너스 블록은 전체가 보너스 타일이라 통째로 2배. */
+export const placementScore = (tileCount, bonus) =>
+  tileCount * RULES.pointsPerPlacedTile * (bonus ? RULES.bonusMultiplier : 1);
+
+/** 클리어 점수. scoreUnits는 board.clearLines()가 계산한 (라인 길이 합 + 보너스 타일 수). */
+export const lineClearScore = (scoreUnits) => scoreUnits * RULES.pointsPerClearedTile;
 
 export class Game {
   constructor() {
@@ -77,9 +85,9 @@ export class Game {
     const coords = this.board.resolve(candidate.cells, q, r);
     if (!coords) return null;
 
-    this.board.fill(coords, candidate.color);
+    this.board.fill(coords, candidate.color, candidate.bonus);
 
-    const placeScore = coords.length * RULES.pointsPerPlacedTile;
+    const placeScore = placementScore(coords.length, candidate.bonus);
     this.score += placeScore;
 
     const lines = this.board.findCompletedLines(coords);
@@ -87,7 +95,7 @@ export class Game {
     let cleared = null;
     if (lines.length) {
       cleared = this.board.clearLines(lines);
-      clearScore = cleared.tileHits * RULES.pointsPerClearedTile;
+      clearScore = lineClearScore(cleared.scoreUnits);
       this.score += clearScore;
     }
 
@@ -97,13 +105,13 @@ export class Game {
       c.uid === candidate.uid ? makeCandidate(slot) : c
     );
 
-    this.pushEffects({ coords, placeScore, lines, cleared, clearScore });
+    this.pushEffects({ coords, placeScore, lines, cleared, clearScore, bonus: !!candidate.bonus });
 
-    return { coords, placeScore, lines, clearScore, cleared };
+    return { coords, placeScore, lines, clearScore, cleared, bonus: !!candidate.bonus };
   }
 
   /** 점수 팝업 · 소멸 애니메이션 큐잉 */
-  pushEffects({ coords, placeScore, lines, cleared, clearScore }) {
+  pushEffects({ coords, placeScore, lines, cleared, clearScore, bonus }) {
     const now = performance.now();
     const center = (cs) => {
       const pts = cs.map(([q, r]) => axialToPixel(q, r, 1));
@@ -115,24 +123,28 @@ export class Game {
 
     const c = center(coords);
     this.effects.push({
-      type: 'score', at: now, ttl: 900,
-      unitX: c.q, unitY: c.r, text: `+${placeScore}`, tone: 'place',
+      type: 'score', at: now, ttl: bonus ? 1100 : 900,
+      unitX: c.q, unitY: c.r,
+      text: `+${placeScore}`,
+      sub: bonus ? 'BONUS ×2' : undefined,
+      tone: bonus ? 'bonus' : 'place',
     });
 
     if (cleared) {
       for (const cell of cleared.removedCells) {
         this.effects.push({
           type: 'pop', at: now, ttl: 340,
-          q: cell.q, r: cell.r, color: cell.color,
+          q: cell.q, r: cell.r, color: cell.color, bonus: cell.bonus,
         });
       }
       const cc = center(cleared.removedCells.map((x) => [x.q, x.r]));
+      const lineText = lines.length > 1 ? `${lines.length} LINES!` : 'LINE!';
       this.effects.push({
         type: 'score', at: now + 120, ttl: 1100,
         unitX: cc.q, unitY: cc.r,
         text: `+${clearScore}`,
-        sub: lines.length > 1 ? `${lines.length} LINES!` : 'LINE!',
-        tone: 'clear',
+        sub: cleared.bonusHits ? `${lineText} BONUS ×2` : lineText,
+        tone: cleared.bonusHits ? 'bonus' : 'clear',
       });
     }
   }

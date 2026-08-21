@@ -21,12 +21,19 @@ export const CONFIG = {
     3: 'all',
     4: 'all',
   },
+
+  /** 후보 블록이 통째로 보너스 블록으로 나올 확률 */
+  bonusChance: 0.1,
 };
 
+// 보너스 타일의 금색과 헷갈리지 않도록 노랑/금 계열은 일부러 뺐다
 export const BLOCK_COLORS = [
-  '#f6b73c', '#f08c3a', '#e2593c', '#d9418f',
+  '#a3d13a', '#f0713a', '#e2593c', '#d9418f',
   '#8a5cf6', '#3b82f6', '#22a06b', '#12b5c9',
 ];
+
+/** 보너스 타일은 색이 아니라 질감으로 구분한다 (render.js의 drawBonusTile) */
+export const BONUS_COLOR = '#ffc93c';
 
 /** CONFIG를 반영한 { size: [shape, ...] } 풀. CONFIG 변경 시 rebuildPool() 호출. */
 let pool = null;
@@ -61,15 +68,17 @@ export function randomShape() {
 
 let candidateSeq = 0;
 
-/** 트레이에 올릴 후보 블록 하나 생성 */
+/** 트레이에 올릴 후보 블록 하나 생성. 보너스 블록은 전체가 보너스 타일이다. */
 export function makeCandidate(slot) {
   const shape = randomShape();
+  const bonus = Math.random() < CONFIG.bonusChance;
   return {
     uid: ++candidateSeq,
     slot,                 // 0,1,2 -> x, y, z
     shape,
     cells: shape.cells,   // cells[0]이 대표 타일
-    color: BLOCK_COLORS[(Math.random() * BLOCK_COLORS.length) | 0],
+    bonus,
+    color: bonus ? BONUS_COLOR : BLOCK_COLORS[(Math.random() * BLOCK_COLORS.length) | 0],
   };
 }
 

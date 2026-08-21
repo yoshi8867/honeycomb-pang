@@ -25,8 +25,66 @@ function drawHex(ctx, cx, cy, size, { fill, stroke, lineWidth = 1.5, alpha = 1 }
   ctx.restore();
 }
 
+// 보너스 타일 색. 일반 블록 팔레트와 겹치지 않게 발광하는 금색 계열로 잡았다.
+const BONUS_CORE = '#fff3c4';
+const BONUS_MID = '#ffc93c';
+const BONUS_EDGE = '#dd7a00';
+
+/** 모든 보너스 타일이 같은 박자로 맥동하도록 시간만으로 결정한다 */
+const bonusPulse = () => 0.5 + 0.5 * Math.sin(performance.now() / 340);
+
+/**
+ * 보너스 타일: 빛이 새어나오는 금빛 + 이중 테두리 + 가운데 반짝임.
+ * 트레이의 0.5배 크기에서도 한눈에 구분돼야 하므로 색만이 아니라 형태로도 다르게 그린다.
+ */
+function drawBonusTile(ctx, cx, cy, size, alpha = 1, scale = 1) {
+  const s = size * scale;
+  const pulse = bonusPulse();
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  ctx.shadowColor = `rgba(255,190,50,${0.5 + pulse * 0.4})`;
+  ctx.shadowBlur = s * (0.45 + pulse * 0.4);
+
+  hexPath(ctx, cx, cy, s * 0.94);
+  const g = ctx.createRadialGradient(cx - s * 0.22, cy - s * 0.34, s * 0.08, cx, cy, s * 1.2);
+  g.addColorStop(0, BONUS_CORE);
+  g.addColorStop(0.42, BONUS_MID);
+  g.addColorStop(1, BONUS_EDGE);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = `rgba(255,248,214,${0.7 + pulse * 0.3})`;
+  ctx.lineWidth = Math.max(1, s * 0.1);
+  ctx.stroke();
+
+  // 안쪽 윤곽 하나 더 — 일반 타일에는 없는 표시
+  hexPath(ctx, cx, cy, s * 0.58);
+  ctx.strokeStyle = `rgba(255,255,255,${0.3 + pulse * 0.25})`;
+  ctx.lineWidth = Math.max(0.8, s * 0.055);
+  ctx.stroke();
+
+  // 가운데 4각 반짝임
+  const r = s * (0.34 + pulse * 0.05);
+  const k = r * 0.26;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.quadraticCurveTo(cx + k, cy - k, cx + r, cy);
+  ctx.quadraticCurveTo(cx + k, cy + k, cx, cy + r);
+  ctx.quadraticCurveTo(cx - k, cy + k, cx - r, cy);
+  ctx.quadraticCurveTo(cx - k, cy - k, cx, cy - r);
+  ctx.closePath();
+  ctx.fillStyle = `rgba(255,253,240,${0.85 + pulse * 0.15})`;
+  ctx.fill();
+
+  ctx.restore();
+}
+
 /** 채워진 타일: 살짝 밝은 위쪽 하이라이트를 얹어 입체감을 준다 */
-function drawTile(ctx, cx, cy, size, color, alpha = 1, scale = 1) {
+function drawTile(ctx, cx, cy, size, color, alpha = 1, scale = 1, bonus = false) {
+  if (bonus) return drawBonusTile(ctx, cx, cy, size, alpha, scale);
   const s = size * scale;
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -95,7 +153,7 @@ export class Renderer {
       const { x, y } = this.boardPoint(cell.q, cell.r);
       const tile = game.board.filled.get(cell.key);
       if (tile && !popping.has(cell.key)) {
-        drawTile(ctx, x, y, size, tile.color);
+        drawTile(ctx, x, y, size, tile.color, 1, 1, tile.bonus);
       } else {
         drawHex(ctx, x, y, size, { fill: EMPTY_FILL, stroke: EMPTY_STROKE });
       }
@@ -130,22 +188,19 @@ export class Renderer {
     const { ctx, layout } = this;
     for (const cand of game.candidates) {
       const slot = layout.tray.slots[cand.slot];
-      if (drag && drag.candidate.uid === cand.uid) {
-        this.drawBlock(cand.cells, slot.cx, slot.cy, layout.trayHexSize, cand.color, 0.15);
-        continue;
-      }
-      this.drawBlock(cand.cells, slot.cx, slot.cy, layout.trayHexSize, cand.color, 1);
+      const alpha = drag && drag.candidate.uid === cand.uid ? 0.15 : 1;
+      this.drawBlock(cand.cells, slot.cx, slot.cy, layout.trayHexSize, cand.color, alpha, cand.bonus);
     }
   }
 
   /** 블록 하나를 (cx, cy) 중심에 그린다 */
-  drawBlock(cells, cx, cy, size, color, alpha = 1) {
+  drawBlock(cells, cx, cy, size, color, alpha = 1, bonus = false) {
     const b = cellsBounds(cells, size);
     const ox = cx - (b.minX + b.w / 2);
     const oy = cy - (b.minY + b.h / 2);
     for (const [q, r] of cells) {
       const p = axialToPixel(q, r, size);
-      drawTile(this.ctx, ox + p.x, oy + p.y, size, color, alpha);
+      drawTile(this.ctx, ox + p.x, oy + p.y, size, color, alpha, 1, bonus);
     }
   }
 
@@ -154,14 +209,15 @@ export class Renderer {
     if (!drag) return;
     const { layout } = this;
     const size = layout.hexSize;
+    const { cells, color, bonus } = drag.candidate;
+
     if (drag.hover && drag.hover.valid) {
       for (const [q, r] of drag.hover.coords) {
         const { x, y } = this.boardPoint(q, r);
-        drawTile(this.ctx, x, y, size, drag.candidate.color, 0.95);
+        drawTile(this.ctx, x, y, size, color, 0.95, 1, bonus);
       }
       return;
     }
-    const { cells, color } = { cells: drag.candidate.cells, color: drag.candidate.color };
     const anchor = axialToPixel(cells[drag.grabIndex][0], cells[drag.grabIndex][1], size);
     for (const [q, r] of cells) {
       const p = axialToPixel(q, r, size);
@@ -169,7 +225,7 @@ export class Renderer {
         this.ctx,
         drag.x - anchor.x + p.x,
         drag.y - drag.lift - anchor.y + p.y,
-        size, color, 0.72
+        size, color, 0.72, 1, bonus
       );
     }
   }
@@ -185,7 +241,7 @@ export class Renderer {
 
       if (e.type === 'pop') {
         const { x, y } = this.boardPoint(e.q, e.r);
-        drawTile(ctx, x, y, size, e.color, 1 - t, 1 + t * 0.45);
+        drawTile(ctx, x, y, size, e.color, 1 - t, 1 + t * 0.45, e.bonus);
       } else if (e.type === 'score') {
         const x = layout.board.cx + e.unitX * size;
         const y = layout.board.cy + e.unitY * size - t * size * 2.4;
@@ -195,17 +251,17 @@ export class Renderer {
         ctx.textBaseline = 'middle';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = 'rgba(8,10,16,0.85)';
-        const big = e.tone === 'clear';
+        const big = e.tone !== 'place';
         ctx.font = `800 ${(size * (big ? 1.05 : 0.72)).toFixed(1)}px system-ui, sans-serif`;
         ctx.lineWidth = size * 0.22;
         ctx.strokeText(e.text, x, y);
-        ctx.fillStyle = big ? '#ffd766' : '#e8edf7';
+        ctx.fillStyle = { bonus: '#ffe08a', clear: '#ffd766' }[e.tone] || '#e8edf7';
         ctx.fillText(e.text, x, y);
         if (e.sub) {
           ctx.font = `800 ${(size * 0.5).toFixed(1)}px system-ui, sans-serif`;
           ctx.lineWidth = size * 0.16;
           ctx.strokeText(e.sub, x, y + size * 0.95);
-          ctx.fillStyle = '#ff9f45';
+          ctx.fillStyle = e.tone === 'bonus' ? '#ffc93c' : '#ff9f45';
           ctx.fillText(e.sub, x, y + size * 0.95);
         }
         ctx.restore();

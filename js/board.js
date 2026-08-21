@@ -44,9 +44,9 @@ export class Board {
   }
 
   /** 실제로 채운다. 호출 전에 resolve()로 검증할 것. */
-  fill(coords, color) {
+  fill(coords, color, bonus = false) {
     for (const [q, r] of coords) {
-      this.filled.set(cellKey(q, r), { q, r, color });
+      this.filled.set(cellKey(q, r), { q, r, color, bonus });
     }
   }
 
@@ -70,17 +70,31 @@ export class Board {
   /**
    * 라인들을 지운다. 여러 라인이 겹치는 칸은 라인마다 중복으로 점수를 주되,
    * 실제 삭제는 합집합 한 번만.
-   * @returns { removedKeys, tileHits } tileHits = 라인 길이의 총합(중복 포함)
+   *
+   * 보너스 타일은 점수를 2배로 받으므로 한 번 더 센다.
+   * 그래서 라인 하나의 점수 단위는 (라인 길이 + 그 라인의 보너스 타일 수).
+   *
+   * @returns { removedKeys, removedCells, tileHits, bonusHits, scoreUnits }
    */
   clearLines(lines) {
     const removed = new Set();
-    let tileHits = 0;
+    let tileHits = 0;   // 라인 길이의 총합 (중복 포함)
+    let bonusHits = 0;  // 그 중 보너스 타일 수 (중복 포함)
     for (const line of lines) {
       tileHits += line.keys.length;
-      for (const k of line.keys) removed.add(k);
+      for (const k of line.keys) {
+        if (this.filled.get(k)?.bonus) bonusHits++;
+        removed.add(k);
+      }
     }
     const cells = [...removed].map((k) => this.filled.get(k)).filter(Boolean);
     for (const k of removed) this.filled.delete(k);
-    return { removedKeys: [...removed], removedCells: cells, tileHits };
+    return {
+      removedKeys: [...removed],
+      removedCells: cells,
+      tileHits,
+      bonusHits,
+      scoreUnits: tileHits + bonusHits,
+    };
   }
 }

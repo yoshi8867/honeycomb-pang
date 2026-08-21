@@ -8,6 +8,7 @@ import {
 } from '../js/hex.js';
 import { Board } from '../js/board.js';
 import { SHAPES } from '../js/shapes-data.js';
+import { placementScore, lineClearScore } from '../js/game.js';
 
 test('한 변 5칸 육각형은 61칸, 9행', () => {
   assert.equal(BOARD_CELLS.length, 3 * BOARD_SIDE ** 2 - 3 * BOARD_SIDE + 1);
@@ -127,6 +128,63 @@ test('두 라인이 동시에 완성되면 겹친 칸도 중복 가산', () => {
   assert.equal(res.removedKeys.length, all.length);
   assert.equal(res.tileHits, res.removedKeys.length + 1, '겹친 1칸이 두 번 계산됨');
   assert.equal(b.filled.size, 0);
+});
+
+test('보너스 블록은 착수 점수가 2배', () => {
+  assert.equal(placementScore(1, false), 20);
+  assert.equal(placementScore(1, true), 40);
+  assert.equal(placementScore(3, false), 60);
+  assert.equal(placementScore(3, true), 120);
+  assert.equal(placementScore(4, true), 160);
+});
+
+test('보너스 타일이 낀 라인은 그 타일만큼 100점씩 더 준다', () => {
+  const b = new Board();
+  const row = LINES.find((l) => l.axis === 'row' && l.keys.length === 5);
+  const coords = row.keys.map((k) => k.split(',').map(Number));
+
+  // 5칸 중 1칸만 보너스
+  b.fill(coords.slice(0, 4), '#fff', false);
+  b.fill(coords.slice(4), '#ffc93c', true);
+
+  const res = b.clearLines(b.findCompletedLines(coords));
+  assert.equal(res.tileHits, 5);
+  assert.equal(res.bonusHits, 1);
+  assert.equal(res.scoreUnits, 6, '보너스 타일 1개가 한 번 더 계산됨');
+  assert.equal(lineClearScore(res.scoreUnits), 600, '기본 500 + 보너스 100');
+});
+
+test('보너스 타일이 두 라인에 걸치면 라인마다 각각 2배', () => {
+  const b = new Board();
+  const row = LINES.find((l) => l.axis === 'row' && l.keys.length === 5);
+  const shared = row.keys[0];
+  const col = LINES.find((l) => l.axis === 'col' && l.keys.includes(shared));
+
+  const all = [...new Set([...row.keys, ...col.keys])];
+  for (const k of all) {
+    const coord = [k.split(',').map(Number)];
+    b.fill(coord, k === shared ? '#ffc93c' : '#fff', k === shared);
+  }
+
+  const done = b.findCompletedLines([shared.split(',').map(Number)]);
+  assert.equal(done.length, 2);
+
+  const res = b.clearLines(done);
+  assert.equal(res.tileHits, row.keys.length + col.keys.length);
+  assert.equal(res.bonusHits, 2, '겹친 보너스 타일이 라인마다 한 번씩');
+  assert.equal(res.scoreUnits, res.tileHits + 2);
+});
+
+test('보너스가 없으면 점수 계산이 이전과 동일', () => {
+  const b = new Board();
+  const row = LINES.find((l) => l.axis === 'row' && l.keys.length === 7);
+  const coords = row.keys.map((k) => k.split(',').map(Number));
+  b.fill(coords, '#fff');
+
+  const res = b.clearLines(b.findCompletedLines(coords));
+  assert.equal(res.bonusHits, 0);
+  assert.equal(res.scoreUnits, res.tileHits);
+  assert.equal(lineClearScore(res.scoreUnits), 700);
 });
 
 test('클리어는 놓은 블록과 무관한 칸도 함께 지운다', () => {

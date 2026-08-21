@@ -21,6 +21,7 @@ html, body {
   font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
   user-select: none;
   -webkit-user-select: none;
+  word-break: keep-all;   /* 한국어 단어가 중간에서 잘리지 않게 */
 }
 
 #app {
@@ -175,6 +176,7 @@ html, body {
   border-radius: 12px;
 }
 .rules b { color: var(--fg); }
+.rules b.gold { color: #ffc93c; text-shadow: 0 0 10px rgba(255, 201, 60, .45); }
 .rules li { position: relative; padding-left: 15px; }
 .rules li + li { margin-top: 7px; }
 .rules li::before {
