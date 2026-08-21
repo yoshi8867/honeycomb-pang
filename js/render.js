@@ -1,6 +1,7 @@
 // 캔버스 렌더링 전담. 게임 상태를 읽기만 하고 바꾸지 않는다.
 
-import { BOARD_CELLS, axialToPixel, hexCorners, cellsBounds, cellKey } from './hex.js';
+import { BOARD_CELLS, axialToPixel, cellsBounds, cellKey } from './hex.js';
+import { drawTile, hexPath, activeBonusStyle } from './tiles.js';
 
 const EMPTY_FILL = '#1c2130';
 const EMPTY_STROKE = '#2b3244';
@@ -8,98 +9,12 @@ const LABEL_COLOR = 'rgba(226,232,244,0.30)';
 const GHOST_OK = 'rgba(255,255,255,0.16)';
 const GHOST_BAD = 'rgba(233,84,84,0.28)';
 
-function hexPath(ctx, cx, cy, size) {
-  const pts = hexCorners(cx, cy, size);
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < 6; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-  ctx.closePath();
-}
-
 function drawHex(ctx, cx, cy, size, { fill, stroke, lineWidth = 1.5, alpha = 1 }) {
   ctx.save();
   ctx.globalAlpha = alpha;
   hexPath(ctx, cx, cy, size * 0.94);
   if (fill) { ctx.fillStyle = fill; ctx.fill(); }
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
-  ctx.restore();
-}
-
-// 보너스 타일 색. 일반 블록 팔레트와 겹치지 않게 발광하는 금색 계열로 잡았다.
-const BONUS_CORE = '#fff3c4';
-const BONUS_MID = '#ffc93c';
-const BONUS_EDGE = '#dd7a00';
-
-/** 모든 보너스 타일이 같은 박자로 맥동하도록 시간만으로 결정한다 */
-const bonusPulse = () => 0.5 + 0.5 * Math.sin(performance.now() / 340);
-
-/**
- * 보너스 타일: 빛이 새어나오는 금빛 + 이중 테두리 + 가운데 반짝임.
- * 트레이의 0.5배 크기에서도 한눈에 구분돼야 하므로 색만이 아니라 형태로도 다르게 그린다.
- */
-function drawBonusTile(ctx, cx, cy, size, alpha = 1, scale = 1) {
-  const s = size * scale;
-  const pulse = bonusPulse();
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
-
-  ctx.shadowColor = `rgba(255,190,50,${0.5 + pulse * 0.4})`;
-  ctx.shadowBlur = s * (0.45 + pulse * 0.4);
-
-  hexPath(ctx, cx, cy, s * 0.94);
-  const g = ctx.createRadialGradient(cx - s * 0.22, cy - s * 0.34, s * 0.08, cx, cy, s * 1.2);
-  g.addColorStop(0, BONUS_CORE);
-  g.addColorStop(0.42, BONUS_MID);
-  g.addColorStop(1, BONUS_EDGE);
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  ctx.strokeStyle = `rgba(255,248,214,${0.7 + pulse * 0.3})`;
-  ctx.lineWidth = Math.max(1, s * 0.1);
-  ctx.stroke();
-
-  // 안쪽 윤곽 하나 더 — 일반 타일에는 없는 표시
-  hexPath(ctx, cx, cy, s * 0.58);
-  ctx.strokeStyle = `rgba(255,255,255,${0.3 + pulse * 0.25})`;
-  ctx.lineWidth = Math.max(0.8, s * 0.055);
-  ctx.stroke();
-
-  // 가운데 4각 반짝임
-  const r = s * (0.34 + pulse * 0.05);
-  const k = r * 0.26;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - r);
-  ctx.quadraticCurveTo(cx + k, cy - k, cx + r, cy);
-  ctx.quadraticCurveTo(cx + k, cy + k, cx, cy + r);
-  ctx.quadraticCurveTo(cx - k, cy + k, cx - r, cy);
-  ctx.quadraticCurveTo(cx - k, cy - k, cx, cy - r);
-  ctx.closePath();
-  ctx.fillStyle = `rgba(255,253,240,${0.85 + pulse * 0.15})`;
-  ctx.fill();
-
-  ctx.restore();
-}
-
-/** 채워진 타일: 살짝 밝은 위쪽 하이라이트를 얹어 입체감을 준다 */
-function drawTile(ctx, cx, cy, size, color, alpha = 1, scale = 1, bonus = false) {
-  if (bonus) return drawBonusTile(ctx, cx, cy, size, alpha, scale);
-  const s = size * scale;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  hexPath(ctx, cx, cy, s * 0.94);
-  ctx.fillStyle = color;
-  ctx.fill();
-  const g = ctx.createLinearGradient(cx, cy - s, cx, cy + s);
-  g.addColorStop(0, 'rgba(255,255,255,0.22)');
-  g.addColorStop(0.55, 'rgba(255,255,255,0)');
-  g.addColorStop(1, 'rgba(0,0,0,0.18)');
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(10,12,18,0.55)';
-  ctx.lineWidth = Math.max(1, s * 0.06);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -255,13 +170,15 @@ export class Renderer {
         ctx.font = `800 ${(size * (big ? 1.05 : 0.72)).toFixed(1)}px system-ui, sans-serif`;
         ctx.lineWidth = size * 0.22;
         ctx.strokeText(e.text, x, y);
-        ctx.fillStyle = { bonus: '#ffe08a', clear: '#ffd766' }[e.tone] || '#e8edf7';
+        // 보너스 팝업은 고른 타일 디자인의 색을 따라간다
+        const bonusInk = activeBonusStyle().popup;
+        ctx.fillStyle = { bonus: bonusInk, clear: '#ffd766' }[e.tone] || '#e8edf7';
         ctx.fillText(e.text, x, y);
         if (e.sub) {
           ctx.font = `800 ${(size * 0.5).toFixed(1)}px system-ui, sans-serif`;
           ctx.lineWidth = size * 0.16;
           ctx.strokeText(e.sub, x, y + size * 0.95);
-          ctx.fillStyle = e.tone === 'bonus' ? '#ffc93c' : '#ff9f45';
+          ctx.fillStyle = e.tone === 'bonus' ? bonusInk : '#ff9f45';
           ctx.fillText(e.sub, x, y + size * 0.95);
         }
         ctx.restore();

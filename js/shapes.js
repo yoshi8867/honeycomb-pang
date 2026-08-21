@@ -23,7 +23,7 @@ export const CONFIG = {
   },
 
   /** 후보 블록이 통째로 보너스 블록으로 나올 확률 */
-  bonusChance: 0.1,
+  bonusChance: 0.15,
 };
 
 // 보너스 타일의 금색과 헷갈리지 않도록 노랑/금 계열은 일부러 뺐다

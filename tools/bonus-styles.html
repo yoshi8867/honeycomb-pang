@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>honeycomb-pang · 보너스 타일 디자인 후보</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🍯</text></svg>">
+<style>
+  :root { color-scheme: dark; --bg:#0e1118; --card:#171c27; --line:#262d3c;
+          --fg:#e7ebf4; --dim:#8b94a9; --accent:#f6b73c; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:26px 16px 72px; background:var(--bg); color:var(--fg);
+         font:15px/1.65 system-ui,-apple-system,"Segoe UI","Noto Sans KR",sans-serif;
+         word-break: keep-all; }
+  header, main, footer { max-width:1080px; margin-inline:auto; }
+  h1 { font-size:23px; margin:0 0 8px; }
+  h1 b { color:var(--accent); }
+  header p { margin:5px 0; color:var(--dim); font-size:14px; }
+  code { background:var(--card); padding:1px 6px; border-radius:5px;
+         font:600 13px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--accent); }
+
+  .grid { display:grid; gap:14px; margin-top:26px;
+          grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:14px 14px 12px; }
+  .card h2 { display:flex; align-items:baseline; gap:8px; margin:0 0 10px; font-size:16px; }
+  .card h2 code { font-size:12px; }
+  canvas { display:block; max-width:100%; margin-inline:auto;
+           border-radius:10px; background:var(--bg); }
+  .tray { margin-top:8px; }
+  .cap { display:flex; justify-content:space-between; gap:10px;
+         margin:8px 2px 0; font-size:11px; color:var(--dim); letter-spacing:.03em; }
+  .note { margin:8px 0 0; font-size:12.5px; color:var(--dim); }
+
+  footer { margin-top:36px; padding-top:18px; border-top:1px solid var(--line);
+           font-size:13.5px; color:var(--dim); }
+  footer b { color:var(--fg); }
+</style>
+</head>
+<body>
+<header>
+  <h1>보너스 타일 디자인 후보 <b>×2</b></h1>
+  <p>전부 <b>두꺼운 흰 테두리 + ×2</b>를 공통으로 쓰고, 색과 글자색만 다릅니다.</p>
+  <p>게임과 <b>같은 코드</b>(<code>js/tiles.js</code>)로 그렸기 때문에 여기 보이는 그대로 나옵니다.</p>
+  <p>위쪽은 <b>보드 크기</b>, 아래쪽은 실제 <b>트레이 크기(0.5배)</b>입니다. 트레이에서도 알아볼 수 있는지가 관건입니다.</p>
+</header>
+
+<main><div class="grid" id="grid"></div></main>
+
+<footer>
+  마음에 드는 것의 <b>id</b>를 알려주세요. 예: <code>obsidian</code>
+  <br>고른 값을 <code>js/tiles.js</code>의 <code>ACTIVE_BONUS_STYLE</code>에 넣으면 게임 전체에 반영됩니다.
+</footer>
+
+<script type="module">
+import { axialToPixel, cellsBounds, hexCorners } from '../js/hex.js';
+import { BONUS_STYLES, drawPlainTile, drawBonusTile, hexPath } from '../js/tiles.js';
+import { BLOCK_COLORS } from '../js/shapes.js';
+
+const BOARD_HEX = 24;   // 실제 게임의 보드 타일 크기와 거의 같다
+const TRAY_HEX = 12;    // 그 0.5배
+
+// 미리보기용 보드 조각. bonus:true 인 칸만 보너스 타일로 그린다.
+const PATCH = [
+  { q: 0, r: -1 }, { q: 1, r: -1, bonus: true }, { q: 2, r: -1 }, { q: 3, r: -1 },
+  { q: -1, r: 0 }, { q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0, bonus: true }, { q: 3, r: 0 },
+  { q: -1, r: 1, bonus: true }, { q: 0, r: 1 }, { q: 1, r: 1 }, { q: 2, r: 1 },
+];
+// 트레이에 놓일 3칸 보너스 블록 + 비교용 일반 블록
+const TRAY_BONUS = [[0, 0], [1, 0], [1, 1]];
+const TRAY_PLAIN = [[0, 0], [1, 0], [2, 0]];
+
+/**
+ * 실제 게임과 같은 픽셀 크기로 그린다.
+ * CSS로 늘리면 실물보다 커 보여서 "트레이에서 알아볼 수 있는가" 판단이 안 되므로
+ * 논리 크기와 CSS 크기를 1:1로 맞춘다.
+ */
+function fit(canvas, w, h) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+
+function emptyHex(ctx, cx, cy, size) {
+  hexPath(ctx, cx, cy, size * 0.94);
+  ctx.fillStyle = '#1c2130';
+  ctx.fill();
+  ctx.strokeStyle = '#2b3244';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+/** 보드 위에 일반 타일과 섞여 있을 때의 모습 */
+function drawBoardSample(canvas, style) {
+  const pad = 12;
+  const b = cellsBounds(PATCH.map((c) => [c.q, c.r]), BOARD_HEX);
+  const ctx = fit(canvas, b.w + pad * 2, b.h + pad * 2 + BOARD_HEX * 1.2);
+  const ox = pad - b.minX;
+  const oy = pad - b.minY + BOARD_HEX * 0.6;
+
+  // 주변에 빈 칸을 둘러 실제 보드처럼 보이게 한다
+  for (const c of PATCH) {
+    for (const [dq, dr] of [[0, -1], [1, -1], [0, 1], [-1, 1], [1, 0], [-1, 0]]) {
+      const p = axialToPixel(c.q + dq, c.r + dr, BOARD_HEX);
+      emptyHex(ctx, ox + p.x, oy + p.y, BOARD_HEX);
+    }
+  }
+
+  PATCH.forEach((c, i) => {
+    const p = axialToPixel(c.q, c.r, BOARD_HEX);
+    if (c.bonus) drawBonusTile(ctx, ox + p.x, oy + p.y, BOARD_HEX, 1, 1, style);
+    else drawPlainTile(ctx, ox + p.x, oy + p.y, BOARD_HEX, BLOCK_COLORS[i % BLOCK_COLORS.length]);
+  });
+}
+
+/** 트레이에 후보 블록으로 놓였을 때의 모습 (0.5배) */
+function drawTraySample(canvas, style) {
+  const ctx = fit(canvas, 300, 56);
+  const draw = (cells, cx, bonus, color) => {
+    const b = cellsBounds(cells, TRAY_HEX);
+    const ox = cx - (b.minX + b.w / 2);
+    const oy = 28 - (b.minY + b.h / 2);
+    for (const [q, r] of cells) {
+      const p = axialToPixel(q, r, TRAY_HEX);
+      if (bonus) drawBonusTile(ctx, ox + p.x, oy + p.y, TRAY_HEX, 1, 1, style);
+      else drawPlainTile(ctx, ox + p.x, oy + p.y, TRAY_HEX, color);
+    }
+  };
+  draw(TRAY_PLAIN, 70, false, BLOCK_COLORS[5]);
+  draw(TRAY_BONUS, 165, true);
+  draw(TRAY_PLAIN, 250, false, BLOCK_COLORS[6]);
+}
+
+const grid = document.getElementById('grid');
+for (const style of BONUS_STYLES) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <h2>${style.name} <code>${style.id}</code></h2>
+    <canvas class="board"></canvas>
+    <div class="cap"><span>보드 크기</span><span>일반 타일과 섞인 상태</span></div>
+    <canvas class="tray"></canvas>
+    <div class="cap"><span>트레이 크기 (0.5배)</span><span>가운데가 보너스 블록</span></div>
+    <p class="note">${style.note}</p>`;
+  grid.append(card);
+  drawBoardSample(card.querySelector('.board'), style);
+  drawTraySample(card.querySelector('.tray'), style);
+}
+</script>
+</body>
+</html>

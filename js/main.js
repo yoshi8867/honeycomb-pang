@@ -102,7 +102,7 @@ function buildPanel({ title, tagline, rules, scoreValue, record, action }) {
       '블록을 끌어다 벌집에 놓으면 <b>타일당 20점</b>',
       '한 줄이 <b>가득 차면</b> 통째로 사라지고 <b>타일당 100점</b>',
       '가로 · ↗ · ↘ 세 방향, 두 줄이 겹치면 중복으로 가산',
-      '<b class="gold">반짝이는 보너스 블록</b>은 놓을 때도 터질 때도 <b>2배</b>',
+      '<b class="gold">×2 보너스 블록</b>은 놓을 때도 터질 때도 <b>2배</b>',
     ]) {
       const li = document.createElement('li');
       li.innerHTML = html;

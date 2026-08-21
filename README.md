@@ -5,6 +5,7 @@
 
 **플레이**: https://yoshi8867.github.io/honeycomb-pang/
 **블록 카탈로그**: https://yoshi8867.github.io/honeycomb-pang/tools/shapes.html
+**보너스 디자인 후보**: https://yoshi8867.github.io/honeycomb-pang/tools/bonus-styles.html
 
 ## 규칙
 
@@ -15,7 +16,7 @@
 | 배치 점수 | 타일당 20점 |
 | 클리어 점수 | 사라진 타일당 100점 |
 | 후보 블록 | 3개 (x, y, z). 하나를 쓰면 그 자리에만 새로 채워짐 |
-| 보너스 블록 | **10%** 확률. 블록 전체가 보너스 타일이고 점수 **2배** |
+| 보너스 블록 | **15%** 확률. 블록 전체가 보너스 타일이고 점수 **2배** |
 | 새로 뽑기 | 후보 3개 전부 교체, **1초 차감** |
 
 - 라인은 **가로**, **↗ (좌하단→우상단)**, **↘ (좌상단→우하단)** 세 방향으로 총 27개.
@@ -35,6 +36,14 @@
 보너스 타일이 두 라인에 걸쳐 있으면 라인마다 각각 2배로 계산된다.
 
 등장 확률은 `js/shapes.js`의 `CONFIG.bonusChance`에서 조절한다.
+
+생김새는 **두꺼운 흰 테두리 + 가운데 ×2**로 고정이고, 색만 고를 수 있다.
+후보 디자인은 [`tools/bonus-styles.html`](tools/bonus-styles.html)에서 실제 크기로 비교할 수 있고
+(게임과 같은 `js/tiles.js`로 그린다), 고른 id를 `js/tiles.js`의 `ACTIVE_BONUS_STYLE`에 넣으면
+보드·트레이·드래그·소멸 이펙트·점수 팝업까지 한 번에 바뀐다.
+
+> 흰 테두리가 두꺼워서 채움 색은 좁은 띠로만 보인다.
+> 색이 3개 이상인 그라디언트는 `span`을 줄여야 끝 색이 잘리지 않는다.
 
 ## 좌표 이름
 
@@ -61,7 +70,7 @@ export const CONFIG = {
     3: 'all',
     4: 'all',        // ['h4-01', 'h4-07', ...] 처럼 id 배열로 바꿔 일부만 사용
   },
-  bonusChance: 0.1,  // 보너스 블록 등장 확률
+  bonusChance: 0.15, // 보너스 블록 등장 확률
 };
 ```
 
@@ -94,12 +103,14 @@ js/
   shapes.js         블록 풀 구성과 랜덤 뽑기  ← 밸런스는 여기서
   shapes-data.js    블록 59종 좌표 (자동 생성)
   layout.js         화면 크기 -> 보드/트레이 배치 계산
-  render.js         캔버스 그리기 전담
+  tiles.js          타일 한 개를 그리는 법 + 보너스 디자인 후보  <- 디자인은 여기서
+  render.js         보드/트레이/이펙트 배치와 그리기
   input.js          포인터 드래그 앤 드롭
   main.js           DOM 배선 + 게임 루프
 tools/
   gen-shapes.mjs    폴리헥스 열거기 (shapes-data.js, shapes.html 생성)
   shapes.html       블록 카탈로그 (자동 생성)
+  bonus-styles.html 보너스 타일 디자인 후보 비교
   core.test.mjs     핵심 로직 테스트
   serve.mjs         로컬 정적 서버
 ```
